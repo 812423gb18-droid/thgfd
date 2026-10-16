@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>因数分解ゲート</title>
+<style>
+  body {
+    margin: 0;
+    background: #0a0e27;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+  #game {
+    position: relative;
+    width: 500px;
+    height: 850px;
+    background: linear-gradient(180deg, #1a1f3a 0%, #0a0e27 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(80, 150, 255, 0.3);
+  }
+  canvas { display: block; }
+
+  #ui {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    pointer-events: none;
+    font-weight: bold;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    z-index: 5;
+  }
+  #time { font-size: 20px; color: #ffd54f; }
+  #score { font-size: 28px; color: #4fd1ff; }
+
+  #speedIndicator {
+    position: absolute;
+    top: 80px;
+    right: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #7c9dff;
+    letter-spacing: 1px;
+    pointer-events: none;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    z-index: 5;
+  }
+  #speedIndicator .lv {
+    color: #ffd54f;
+    font-size: 15px;
+  }
+
+  #startScreen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(30, 50, 100, 0.95) 0%, rgba(10, 14, 39, 0.98) 70%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    text-align: center;
+    padding: 30px;
+    box-sizing: border-box;
+    z-index: 20;
+  }
+  #startScreen .title {
+    font-size: 44px;
+    font-weight: bold;
+    color: #4fd1ff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(79, 209, 255, 0.8), 0 0 60px rgba(79, 209, 255, 0.4);
+    animation: titlePulse 2s ease-in-out infinite;
+  }
+  @keyframes titlePulse {
+    0%, 100% { text-shadow: 0 0 30px rgba(79, 209, 255, 0.8), 0 0 60px rgba(79, 209, 255, 0.4); }
+    50% { text-shadow: 0 0 40px rgba(79, 209, 255, 1), 0 0 80px rgba(79, 209, 255, 0.6); }
+  }
+  #startScreen .subtitle {
+    font-size: 16px;
+    color: #8892b0;
+    letter-spacing: 4px;
+  }
+  #startScreen .spaceHint {
+    font-size: 22px;
+    font-weight: bold;
+    color: #ffd54f;
+    padding: 14px 30px;
+    border: 2px solid rgba(255, 213, 79, 0.6);
+    border-radius: 12px;
+    background: rgba(255, 213, 79, 0.08);
+    animation: hintBlink 1.4s ease-in-out infinite;
+    letter-spacing: 2px;
+  }
+  @keyframes hintBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  #startScreen .smallHint {
+    font-size: 13px;
+    color: #6a7490;
+    margin-top: 10px;
+  }
+
+  #gameOverScreen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(40, 15, 40, 0.92) 0%, rgba(10, 14, 39, 0.98) 70%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    gap: 16px;
+    opacity: 0;
+    animation: fadeIn 0.4s ease-out forwards;
+    z-index: 20;
+    overflow-y: auto;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .resultPanel {
+    width: 100%;
+    max-width: 400px;
+    padding: 22px 22px;
+    background: linear-gradient(160deg, rgba(30, 45, 90, 0.85) 0%, rgba(20, 25, 55, 0.9) 100%);
+    border: 1.5px solid rgba(79, 209, 255, 0.35);
+    border-radius: 24px;
+    box-shadow:
+      0 0 40px rgba(79, 209, 255, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .resultTitle {
+    font-size: 14px;
+    letter-spacing: 6px;
+    color: #8892b0;
+    font-weight: bold;
+  }
+
+  .scoreRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+    padding: 4px 0;
+  }
+  .scoreDisplay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .scoreLabel {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: #4fd1ff;
+    font-weight: bold;
+  }
+  .scoreValue {
+    font-size: 58px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1;
+    text-shadow:
+      0 0 20px rgba(79, 209, 255, 0.9),
+      0 0 40px rgba(79, 209, 255, 0.5);
+    letter-spacing: -2px;
+  }
+
+  #rankSideBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(255, 213, 79, 0.18), rgba(255, 183, 77, 0.08));
+    border: 1.5px solid rgba(255, 213, 79, 0.6);
+    border-radius: 14px;
+    color: #ffd54f;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 18px rgba(255, 213, 79, 0.25);
+    flex-shrink: 0;
+  }
+  #rankSideBtn .icon { font-size: 24px; line-height: 1; }
+  #rankSideBtn:hover {
+    transform: scale(1.06);
+    background: linear-gradient(135deg, rgba(255, 213, 79, 0.32), rgba(255, 183, 77, 0.15));
+    box-shadow: 0 0 28px rgba(255, 213, 79, 0.5);
+  }
+  #rankSideBtn:active { transform: scale(0.96); }
+
+  .subStats {
+    display: flex;
+    gap: 30px;
+    padding: 10px 24px;
+    background: rgba(10, 14, 39, 0.5);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .subStat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .subStat .lbl {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #8892b0;
+    font-weight: bold;
+  }
+  .subStat .val {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffd54f;
+  }
+
+  .divider {
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(79, 209, 255, 0.4), transparent);
+  }
+
+  #resultMsg {
+    font-size: 22px;
+    font-weight: bold;
+    color: #ffd54f;
+    text-shadow: 0 0 16px rgba(255, 213, 79, 0.7);
+    letter-spacing: 1px;
+    margin: 2px 0;
+  }
+
+  .bestRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: rgba(255, 213, 79, 0.08);
+    border: 1.5px solid rgba(255, 213, 79, 0.4);
+    border-radius: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .bestRow .crown { font-size: 20px; }
+  .bestRow .info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .bestRow .info .lbl {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #ffd54f;
+    font-weight: bold;
+  }
+  .bestRow .info .val {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffd54f;
+  }
+  .bestRow .info .sub {
+    font-size: 12px;
+    color: #ffb74d;
+  }
+
+  #newRecordMsg {
+    font-size: 14px;
+    font-weight: bold;
+    color: #0a0e27;
+    background: linear-gradient(135deg, #ffd54f, #ffb74d);
+    padding: 5px 18px;
+    border-radius: 20px;
+    letter-spacing: 2px;
+    box-shadow: 0 0 25px rgba(255, 213, 79, 0.9);
+    animation: badgePop 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, badgeGlow 1.5s ease-in-out infinite;
+  }
+  @keyframes badgePop {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  @keyframes badgeGlow {
+    0%, 100% { box-shadow: 0 0 25px rgba(255, 213, 79, 0.9); }
+    50% { box-shadow: 0 0 40px rgba(255, 213, 79, 1); }
+  }
+
+  .saveSection {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: rgba(10, 14, 39, 0.55);
+    border: 1px solid rgba(79, 209, 255, 0.25);
+    border-radius: 14px;
+    box-sizing: border-box;
+  }
+  .saveToggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .saveToggle input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(79, 209, 255, 0.6);
+    border-radius: 6px;
+    background: rgba(79, 209, 255, 0.08);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+  }
+  .saveToggle input[type="checkbox"]:checked {
+    background: #4fd1ff;
+    border-color: #4fd1ff;
+    box-shadow: 0 0 12px rgba(79, 209, 255, 0.7);
+  }
+  .saveToggle input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+    color: #0a0e27;
+    font-weight: bold;
+    font-size: 15px;
+  }
+  .saveToggle label {
+    font-size: 15px;
+    font-weight: bold;
+    color: #c8d4e8;
+    cursor: pointer;
+  }
+  #nameInput {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(10, 14, 39, 0.7);
+    border: 1.5px solid rgba(79, 209, 255, 0.4);
+    border-radius: 10px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+  #nameInput:focus {
+    border-color: #4fd1ff;
+    box-shadow: 0 0 15px rgba(79, 209, 255, 0.4);
+  }
+  #nameInput::placeholder { color: #556080; font-weight: normal; }
+  #nameInput:disabled { opacity: 0.4; cursor: not-allowed; }
+  #saveStatus {
+    font-size: 13px;
+    font-weight: bold;
+    color: #4fd1ff;
+    text-align: center;
+    min-height: 18px;
+    text-shadow: 0 0 10px rgba(79, 209, 255, 0.6);
+  }
+  #saveStatus.saved { color: #6effa0; text-shadow: 0 0 10px rgba(110, 255, 160, 0.6); }
+
+  .btnRow {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  #retryBtn, #saveBtn {
+    padding: 14px 30px;
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #0a0e27;
+    background: linear-gradient(135deg, #4fd1ff, #7c9dff);
+    border: none;
+    border-radius: 28px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 6px 24px rgba(79, 209, 255, 0.6);
+    position: relative;
+    overflow: hidden;
+  }
+  #saveBtn {
+    background: linear-gradient(135deg, #ffd54f, #ffb74d);
+    box-shadow: 0 6px 24px rgba(255, 213, 79, 0.5);
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+  #saveBtn:hover:not(:disabled) {
+    transform: scale(1.06);
+    box-shadow: 0 8px 30px rgba(255, 213, 79, 0.8);
+  }
+  #saveBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #retryBtn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+  #retryBtn:hover::before { transform: translateX(100%); }
+  #retryBtn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 8px 32px rgba(79, 209, 255, 0.8);
+  }
+  #retryBtn:active { transform: scale(0.97); }
+  #retryBtn .key { font-size: 12px; opacity: 0.7; margin-left: 5px; }
+
+  #bestPanel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 16px;
+    background: rgba(255, 213, 79, 0.12);
+    border: 1.5px solid rgba(255, 213, 79, 0.5);
+    border-radius: 12px;
+    font-weight: bold;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(255, 213, 79, 0.25);
+    z-index: 15;
+  }
+  #bestPanel .bestLabel {
+    font-size: 11px;
+    color: #ffd54f;
+    letter-spacing: 2px;
+    margin-bottom: 2px;
+  }
+  #bestPanel .bestValue { font-size: 22px; color: #ffd54f; }
+  #bestPanel .bestTime { font-size: 12px; color: #ffb74d; margin-top: 2px; }
+
+  #controls {
+    position: absolute;
+    bottom: 30px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .ctrlBtn {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: rgba(79, 209, 255, 0.15);
+    border: 2px solid rgba(79, 209, 255, 0.5);
+    color: #4fd1ff;
+    font-size: 40px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: background 0.1s, transform 0.1s;
+  }
+  .ctrlBtn.active {
+    background: rgba(79, 209, 255, 0.4);
+    transform: scale(0.95);
+  }
+
+  #rankingModal {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 8, 20, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 20px;
+    box-sizing: border-box;
+    z-index: 100;
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.25s ease-out;
+  }
+  .rankingPanel {
+    width: 100%;
+    max-width: 400px;
+    max-height: 720px;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(160deg, rgba(30, 45, 90, 0.98) 0%, rgba(20, 25, 55, 0.98) 100%);
+    border: 1.5px solid rgba(255, 213, 79, 0.5);
+    border-radius: 22px;
+    box-shadow:
+      0 0 60px rgba(255, 213, 79, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .rankingHeader {
+    padding: 18px 20px;
+    background: linear-gradient(135deg, rgba(255, 213, 79, 0.2), rgba(255, 183, 77, 0.1));
+    border-bottom: 1px solid rgba(255, 213, 79, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rankingHeader h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #ffd54f;
+    letter-spacing: 2px;
+    text-shadow: 0 0 12px rgba(255, 213, 79, 0.6);
+  }
+  #closeRankBtn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    padding: 0;
+  }
+  #closeRankBtn:hover {
+    background: rgba(255, 84, 112, 0.4);
+    transform: scale(1.1);
+  }
+
+  .rankingList {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rankingList::-webkit-scrollbar { width: 8px; }
+  .rankingList::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+  .rankingList::-webkit-scrollbar-thumb {
+    background: rgba(79, 209, 255, 0.5);
+    border-radius: 4px;
+  }
+  .rankingList::-webkit-scrollbar-thumb:hover { background: rgba(79, 209, 255, 0.8); }
+
+  .rankItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(10, 14, 39, 0.6);
+    border: 1px solid rgba(79, 209, 255, 0.15);
+    border-radius: 12px;
+    transition: transform 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .rankItem:hover {
+    background: rgba(79, 209, 255, 0.1);
+    transform: translateX(3px);
+  }
+  .rankItem.top1 {
+    background: linear-gradient(90deg, rgba(255, 213, 79, 0.22), rgba(10, 14, 39, 0.6));
+    border-color: rgba(255, 213, 79, 0.7);
+    box-shadow: 0 0 20px rgba(255, 213, 79, 0.3);
+  }
+  .rankItem.top2 {
+    background: linear-gradient(90deg, rgba(200, 210, 220, 0.18), rgba(10, 14, 39, 0.6));
+    border-color: rgba(200, 210, 220, 0.55);
+  }
+  .rankItem.top3 {
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.18), rgba(10, 14, 39, 0.6));
+    border-color: rgba(205, 127, 50, 0.6);
+  }
+  .rankPos {
+    font-size: 16px;
+    font-weight: bold;
+    color: #8892b0;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .rankItem.top1 .rankPos { color: #ffd54f; font-size: 20px; }
+  .rankItem.top2 .rankPos { color: #c8d2dc; font-size: 18px; }
+  .rankItem.top3 .rankPos { color: #cd7f32; font-size: 18px; }
+
+  .rankInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .rankName {
+    font-size: 15px;
+    font-weight: bold;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rankDate {
+    font-size: 11px;
+    color: #6a7490;
+  }
+  .rankScore {
+    font-size: 22px;
+    font-weight: bold;
+    color: #4fd1ff;
+    text-shadow: 0 0 10px rgba(79, 209, 255, 0.6);
+    flex-shrink: 0;
+  }
+  .rankItem.top1 .rankScore {
+    color: #ffd54f;
+    text-shadow: 0 0 14px rgba(255, 213, 79, 0.8);
+  }
+
+  .rankEmpty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6a7490;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .rankingFooter {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: center;
+  }
+  #clearRankBtn {
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ff5470;
+    background: rgba(255, 84, 112, 0.1);
+    border: 1px solid rgba(255, 84, 112, 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 1px;
+  }
+  #clearRankBtn:hover {
+    background: rgba(255, 84, 112, 0.25);
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="canvas" width="500" height="850"></canvas>
+
+  <div id="ui">
+    <div id="time">TIME 0.0s</div>
+    <div id="score">SCORE 0</div>
+  </div>
+  <div id="speedIndicator">SPEED <span class="lv" id="speedLevel">Lv.1</span></div>
+
+  <div id="bestPanel">
+    <div class="bestLabel">BEST</div>
+    <div class="bestValue" id="bestValue">0</div>
+    <div class="bestTime" id="bestTime">0.0s</div>
+  </div>
+
+  <div id="controls">
+    <div class="ctrlBtn" id="btnLeft">◀</div>
+    <div class="ctrlBtn" id="btnRight">▶</div>
+  </div>
+
+  <div id="startScreen">
+    <div class="title">因数分解ゲート</div>
+    <div class="subtitle">FACTORIZATION GATE</div>
+    <div class="spaceHint">SPACE でスタート</div>
+    <div class="smallHint">← → で左右に移動（離すと中央に戻る）</div>
+  </div>
+
+  <div id="gameOverScreen" class="hidden">
+    <div class="resultPanel">
+      <div class="resultTitle">RESULT</div>
+
+      <div id="newRecordMsg" class="hidden">🎉 NEW RECORD 🎉</div>
+
+      <div class="scoreRow">
+        <div class="scoreDisplay">
+          <div class="scoreLabel">SCORE</div>
+          <div class="scoreValue" id="finalScore">0</div>
+        </div>
+        <button id="rankSideBtn" title="ランキングを見る">
+          <span class="icon">🏆</span>
+          <span>ランキング</span>
+        </button>
+      </div>
+
+      <div class="subStats">
+        <div class="subStat">
+          <div class="lbl">SURVIVED</div>
+          <div class="val" id="finalTime">0.0s</div>
+        </div>
+        <div class="subStat">
+          <div class="lbl">MAX SPEED</div>
+          <div class="val" id="finalSpeed">Lv.1</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="bestRow">
+        <div class="crown">👑</div>
+        <div class="info">
+          <div class="lbl">BEST RECORD</div>
+          <div class="val" id="bestRecordValue">0</div>
+          <div class="sub" id="bestRecordTime">0.0s</div>
+        </div>
+      </div>
+
+      <div id="resultMsg"></div>
+
+      <div class="saveSection">
+        <label class="saveToggle">
+          <input type="checkbox" id="saveCheck">
+          <label for="saveCheck">スコアを保存しますか？</label>
+        </label>
+        <input type="text" id="nameInput" placeholder="名前を入力（最大10文字）" maxlength="10" disabled>
+        <button id="saveBtn" disabled>保存する</button>
+        <div id="saveStatus"></div>
+      </div>
+
+      <div class="btnRow">
+        <button id="retryBtn">RETRY<span class="key">(SPACE)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rankingModal" class="hidden">
+    <div class="rankingPanel">
+      <div class="rankingHeader">
+        <h2>🏆 RANKING</h2>
+        <button id="closeRankBtn">✕</button>
+      </div>
+      <div class="rankingList" id="rankingList"></div>
+      <div class="rankingFooter">
+        <button id="clearRankBtn">ランキングをクリア</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const scoreEl = document.getElementById('score');
+const timeEl = document.getElementById('time');
+const speedLevelEl = document.getElementById('speedLevel');
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScoreEl = document.getElementById('finalScore');
+const finalTimeEl = document.getElementById('finalTime');
+const finalSpeedEl = document.getElementById('finalSpeed');
+const resultMsg = document.getElementById('resultMsg');
+const btnLeft = document.getElementById('btnLeft');
+const btnRight = document.getElementById('btnRight');
+const bestValueEl = document.getElementById('bestValue');
+const bestTimeEl = document.getElementById('bestTime');
+const bestRecordValueEl = document.getElementById('bestRecordValue');
+const bestRecordTimeEl = document.getElementById('bestRecordTime');
+const newRecordMsg = document.getElementById('newRecordMsg');
+const rankSideBtn = document.getElementById('rankSideBtn');
+const rankingModal = document.getElementById('rankingModal');
+const rankingList = document.getElementById('rankingList');
+const closeRankBtn = document.getElementById('closeRankBtn');
+const clearRankBtn = document.getElementById('clearRankBtn');
+const saveCheck = document.getElementById('saveCheck');
+const nameInput = document.getElementById('nameInput');
+const saveBtn = document.getElementById('saveBtn');
+const saveStatus = document.getElementById('saveStatus');
+
+const PROBLEM_POOL = [
+  { q: 'x² + 5x + 6',       a: '(x + 2)(x + 3)' },
+  { q: 'x² + 7x + 12',      a: '(x + 3)(x + 4)' },
+  { q: 'x² - x - 6',        a: '(x - 3)(x + 2)' },
+  { q: 'x² - 8x + 15',      a: '(x - 3)(x - 5)' },
+  { q: 'x² + 2x - 8',       a: '(x + 4)(x - 2)' },
+  { q: 'x² - 4',            a: '(x + 2)(x - 2)' },
+  { q: 'x² + 6x + 9',       a: '(x + 3)²' },
+  { q: 'x² - 10x + 25',     a: '(x - 5)²' },
+  { q: 'x² - 9',            a: '(x + 3)(x - 3)' },
+  { q: 'x² + 4x + 4',       a: '(x + 2)²' },
+  { q: '2x² + 5x + 2',      a: '(2x + 1)(x + 2)' },
+  { q: '3x² + 7x + 2',      a: '(3x + 1)(x + 2)' },
+  { q: '2x² - 5x + 3',      a: '(2x - 3)(x - 1)' },
+  { q: '4x² - 9',           a: '(2x + 3)(2x - 3)' },
+  { q: '6x² + 7x + 2',      a: '(2x + 1)(3x + 2)' },
+  { q: 'x² + 3xy + 2y²',    a: '(x + y)(x + 2y)' },
+  { q: 'x² - 4y²',          a: '(x + 2y)(x - 2y)' },
+  { q: 'x³ - x',            a: 'x(x + 1)(x - 1)' },
+  { q: '3x² - 12',          a: '3(x + 2)(x - 2)' },
+  { q: '2x² + 4x - 6',      a: '2(x + 3)(x - 1)' }
+];
+
+let state = 'start';
+let score = 0;
+let elapsed = 0;
+let speedLevel = 1;
+let speed = 1;
+let distance = 0;
+
+let ball = { x: W/2, y: H - 130, r: 22, targetX: W/2 };
+
+let inputLeft = false;
+let inputRight = false;
+
+let gates = [];
+let particles = [];
+let shakeTime = 0;
+let lastTime = 0;
+let gateSpawnDistance = 0;
+let lastProblemIndex = -1;
+let currentScoreSaved = false;
+let maxSpeedLevel = 1;
+
+let countdownTime = 0;
+const COUNTDOWN_DURATION = 3.0;
+
+const GATE_INTERVAL = 400;
+const SPLIT_X = W / 2;
+const MOVE_OFFSET = 110;
+
+// ===== 速度パラメータ（1000点ごとに上限なしで加速） =====
+const BASE_SPEED = 180;
+const SCORE_PER_SPEEDUP = 1000;
+const SPEED_STEP = 0.12;
+
+// ===== localStorage キー =====
+// ※ このキー名と保存形式は既存データを守るため変更しないこと
+const BEST_SCORE_KEY = 'factorGate_bestScore';
+const BEST_TIME_KEY = 'factorGate_bestTime';
+const RANKING_KEY = 'factorGate_ranking';
+const MAX_RANKING = 20;
+
+let bestScore = 0;
+let bestTime = 0;
+
+function loadBest() {
+  try {
+    const s = localStorage.getItem(BEST_SCORE_KEY);
+    const t = localStorage.getItem(BEST_TIME_KEY);
+    bestScore = s ? parseInt(s, 10) : 0;
+    bestTime = t ? parseFloat(t) : 0;
+  } catch (e) {
+    bestScore = 0;
+    bestTime = 0;
+  }
+  updateBestDisplay();
+}
+
+function saveBest(score, time) {
+  let updated = false;
+  if (score > bestScore) {
+    bestScore = score;
+    updated = true;
+    try { localStorage.setItem(BEST_SCORE_KEY, String(bestScore)); } catch (e) {}
+  }
+  if (time > bestTime) {
+    bestTime = time;
+    updated = true;
+    try { localStorage.setItem(BEST_TIME_KEY, String(bestTime)); } catch (e) {}
+  }
+  updateBestDisplay();
+  return updated;
+}
+
+function updateBestDisplay() {
+  bestValueEl.textContent = bestScore;
+  bestTimeEl.textContent = bestTime.toFixed(1) + 's';
+}
+
+// ===== ランキング（既存データを保持する読み書き） =====
+function loadRanking() {
+  try {
+    const data = localStorage.getItem(RANKING_KEY);
+    if (!data) return [];
+    const arr = JSON.parse(data);
+    if (!Array.isArray(arr)) return [];
+    // 既存データの形 {name, score, time, date} をそのまま活かす
+    return arr;
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRanking(ranking) {
+  try {
+    localStorage.setItem(RANKING_KEY, JSON.stringify(ranking));
+  } catch (e) {}
+}
+
+function addToRanking(name, score, time) {
+  const ranking = loadRanking();
+  const entry = {
+    name: name || '名無し',
+    score: score,
+    time: time,
+    date: new Date().toISOString()
+  };
+  ranking.push(entry);
+  ranking.sort((a, b) => b.score - a.score);
+  const trimmed = ranking.slice(0, MAX_RANKING);
+  saveRanking(trimmed);
+  return trimmed;
+}
+
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${y}/${m}/${day} ${hh}:${mm}`;
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderRanking() {
+  const ranking = loadRanking();
+  if (ranking.length === 0) {
+    rankingList.innerHTML = '<div class="rankEmpty">まだ記録がありません。<br>スコアを保存してみよう！</div>';
+    return;
+  }
+  rankingList.innerHTML = '';
+  ranking.forEach((entry, idx) => {
+    const item = document.createElement('div');
+    item.className = 'rankItem';
+    if (idx === 0) item.classList.add('top1');
+    else if (idx === 1) item.classList.add('top2');
+    else if (idx === 2) item.classList.add('top3');
+
+    let medal = String(idx + 1);
+    if (idx === 0) medal = '🥇';
+    else if (idx === 1) medal = '🥈';
+    else if (idx === 2) medal = '🥉';
+
+    item.innerHTML = `
+      <div class="rankPos">${medal}</div>
+      <div class="rankInfo">
+        <div class="rankName"></div>
+        <div class="rankDate">${formatDate(entry.date)}</div>
+      </div>
+      <div class="rankScore">${entry.score}</div>
+    `;
+    item.querySelector('.rankName').textContent = entry.name;
+    rankingList.appendChild(item);
+  });
+}
+
+function openRanking() {
+  renderRanking();
+  rankingModal.classList.remove('hidden');
+  rankingList.scrollTop = 0;
+}
+function closeRanking() {
+  rankingModal.classList.add('hidden');
+}
+
+rankSideBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  openRanking();
+});
+
+closeRankBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeRanking();
+});
+
+rankingModal.addEventListener('pointerdown', (e) => {
+  if (e.target === rankingModal) closeRanking();
+});
+
+// 「ランキングをクリア」は確認の上で全削除（誤操作防止）
+clearRankBtn.addEventListener('click', () => {
+  if (confirm('ランキングをすべて削除しますか？\nこの操作は取り消せません。')) {
+    saveRanking([]);
+    renderRanking();
+  }
+});
+
+function resetSaveSection() {
+  saveCheck.checked = false;
+  saveCheck.disabled = false;
+  nameInput.value = '';
+  nameInput.disabled = true;
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存する';
+  saveStatus.textContent = '';
+  saveStatus.classList.remove('saved');
+  currentScoreSaved = false;
+}
+
+saveCheck.addEventListener('change', () => {
+  const checked = saveCheck.checked;
+  nameInput.disabled = !checked;
+  saveBtn.disabled = !checked || currentScoreSaved;
+  if (checked && !currentScoreSaved) {
+    nameInput.focus();
+  }
+});
+
+nameInput.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter' && !saveBtn.disabled) {
+    saveBtn.click();
+  }
+});
+
+nameInput.addEventListener('input', () => {
+  if (saveCheck.checked && !currentScoreSaved) {
+    saveBtn.disabled = false;
+  }
+});
+
+saveBtn.addEventListener('click', () => {
+  if (currentScoreSaved) return;
+  const name = (nameInput.value || '').trim() || '名無し';
+  addToRanking(name, score, elapsed);
+  currentScoreSaved = true;
+  saveBtn.disabled = true;
+  nameInput.disabled = true;
+  saveCheck.disabled = true;
+  saveStatus.textContent = '✓ ランキングに保存しました！';
+  saveStatus.classList.add('saved');
+  saveBtn.textContent = '保存済み';
+});
+
+function formatExpr(str) {
+  if (!str) return str;
+  let s = str;
+  s = s.replace(/\+\s*-/g, '- ');
+  s = s.replace(/-\s*-/g, '+ ');
+  s = s.replace(/\s+/g, ' ');
+  return s;
+}
+
+function reset() {
+  score = 0;
+  elapsed = 0;
+  speedLevel = 1;
+  speed = 1;
+  maxSpeedLevel = 1;
+  distance = 0;
+  gateSpawnDistance = 0;
+  ball.x = W/2;
+  ball.targetX = W/2;
+  gates = [];
+  particles = [];
+  shakeTime = 0;
+  lastProblemIndex = -1;
+  countdownTime = COUNTDOWN_DURATION;
+  inputLeft = false;
+  inputRight = false;
+  scoreEl.textContent = 'SCORE 0';
+  timeEl.textContent = 'TIME 0.0s';
+  speedLevelEl.textContent = 'Lv.1';
+}
+
+function startGame() {
+  reset();
+  state = 'countdown';
+  startScreen.classList.add('hidden');
+  gameOverScreen.classList.add('hidden');
+  closeRanking();
+  lastTime = performance.now();
+  currentScoreSaved = false;
+
+  const firstProblem = pickProblem();
+  const correct = formatExpr(firstProblem.a);
+  const wrong = formatExpr(makeWrongAnswer(firstProblem.a));
+  const correctOnLeft = Math.random() < 0.5;
+  const values = correctOnLeft ? [correct, wrong] : [wrong, correct];
+
+  gates.push({
+    y: H * 0.30,
+    question: formatExpr(firstProblem.q),
+    values: values,
+    correctSide: correctOnLeft ? 'left' : 'right',
+    splitX: SPLIT_X,
+    judged: false,
+    selectedSide: null,
+    fadeAlpha: 1,
+    fading: false
+  });
+
+  gateSpawnDistance = GATE_INTERVAL;
+}
+
+function gameOver() {
+  state = 'over';
+  finalScoreEl.textContent = score;
+  finalTimeEl.textContent = elapsed.toFixed(1) + 's';
+  finalSpeedEl.textContent = 'Lv.' + maxSpeedLevel;
+
+  const updated = saveBest(score, elapsed);
+  bestRecordValueEl.textContent = bestScore;
+  bestRecordTimeEl.textContent = bestTime.toFixed(1) + 's';
+
+  if (updated) {
+    newRecordMsg.classList.remove('hidden');
+  } else {
+    newRecordMsg.classList.add('hidden');
+  }
+
+  if (score >= 10000) resultMsg.textContent = '🔥 やりますねぇｗ';
+  else if (score >= 5000) resultMsg.textContent = '🏆 かっけーｗえっぐーｗｗｗ';
+  else if (score >= 2500) resultMsg.textContent = '👏 どわーｗまあまあやなｗｗｗ';
+  else if (score >= 1000) resultMsg.textContent = '🙂 うぉｗざこｗｗｗ';
+  else resultMsg.textContent = 'どんまいｗいまどんなきもちーｗｗｗ';
+
+  resetSaveSection();
+
+  gameOverScreen.classList.remove('hidden');
+  void gameOverScreen.offsetWidth;
+  const panel = gameOverScreen.querySelector('.resultPanel');
+  if (panel) {
+    panel.style.animation = 'none';
+    void panel.offsetWidth;
+    panel.style.animation = '';
+  }
+
+  shakeTime = 0.5;
+  spawnParticles(ball.x, ball.y, '#ff5470', 25);
+}
+
+function pickProblem() {
+  let idx;
+  do {
+    idx = Math.floor(Math.random() * PROBLEM_POOL.length);
+  } while (idx === lastProblemIndex && PROBLEM_POOL.length > 1);
+  lastProblemIndex = idx;
+  return PROBLEM_POOL[idx];
+}
+
+function makeWrongAnswer(correct) {
+  const variants = [];
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const matches = [...correct.matchAll(/-?\d+/g)];
+    if (matches.length === 0) break;
+    const pick = matches[Math.floor(Math.random() * matches.length)];
+    const original = parseInt(pick[0]);
+    let delta = (Math.random() < 0.5 ? 1 : -1) * (1 + Math.floor(Math.random() * 3));
+    let newNum = original + delta;
+    if (newNum === 0) newNum = original + 1;
+    const candidate = correct.slice(0, pick.index) + newNum + correct.slice(pick.index + pick[0].length);
+    if (candidate !== correct && !variants.includes(candidate)) {
+      return candidate;
+    }
+  }
+  return correct + ' ';
+}
+
+function spawnGate() {
+  const problem = pickProblem();
+  const correct = formatExpr(problem.a);
+  const wrong = formatExpr(makeWrongAnswer(problem.a));
+  const correctOnLeft = Math.random() < 0.5;
+  const values = correctOnLeft ? [correct, wrong] : [wrong, correct];
+
+  gates.push({
+    y: -130,
+    question: formatExpr(problem.q),
+    values: values,
+    correctSide: correctOnLeft ? 'left' : 'right',
+    splitX: SPLIT_X,
+    judged: false,
+    selectedSide: null,
+    fadeAlpha: 1,
+    fading: false
+  });
+}
+
+function updateSpeedLevel() {
+  const newLevel = Math.floor(score / SCORE_PER_SPEEDUP) + 1;
+  if (newLevel !== speedLevel) {
+    speedLevel = newLevel;
+    if (speedLevel > maxSpeedLevel) maxSpeedLevel = speedLevel;
+    speedLevelEl.textContent = 'Lv.' + speedLevel;
+    if (state === 'playing') {
+      spawnText('SPEED UP!  Lv.' + speedLevel, W/2, H/2, '#ffd54f', true);
+      spawnParticles(W/2, H/2, '#ffd54f', 25);
+      shakeTime = 0.3;
+    }
+  }
+}
+
+function update(dt) {
+  if (state === 'countdown') {
+    countdownTime -= dt;
+    if (countdownTime <= 0) {
+      state = 'playing';
+      elapsed = 0;
+    }
+    updateBallPosition(dt);
+    updateParticles(dt);
+    if (shakeTime > 0) shakeTime -= dt;
+    return;
+  }
+
+  if (state !== 'playing') {
+    updateParticles(dt);
+    if (shakeTime > 0) shakeTime -= dt;
+    return;
+  }
+
+  elapsed += dt;
+  score = Math.floor(elapsed * 100);
+  scoreEl.textContent = 'SCORE ' + score;
+  timeEl.textContent = 'TIME ' + elapsed.toFixed(1) + 's';
+
+  updateSpeedLevel();
+
+  speed = 1 + SPEED_STEP * (speedLevel - 1);
+
+  const ts = speed;
+  distance += BASE_SPEED * dt * ts;
+
+  while (distance > gateSpawnDistance) {
+    spawnGate();
+    gateSpawnDistance += GATE_INTERVAL;
+  }
+
+  updateBallPosition(dt);
+
+  const gateSpeed = BASE_SPEED * ts;
+  for (let i = gates.length - 1; i >= 0; i--) {
+    const g = gates[i];
+    g.y += gateSpeed * dt;
+
+    const gateTop = g.y - 35;
+    const gateBottom = g.y + 45;
+
+    if (!g.judged && ball.y >= gateTop && ball.y <= gateBottom) {
+      g.judged = true;
+      const isLeft = ball.x < g.splitX;
+      g.selectedSide = isLeft ? 'left' : 'right';
+
+      if (g.selectedSide === g.correctSide) {
+        g.fading = true;
+        spawnParticles(ball.x, ball.y, '#4fd1ff', 12);
+        spawnText('+', ball.x, ball.y - 30, '#4fd1ff');
+      } else {
+        spawnText('MISS', ball.x, ball.y - 30, '#ff5470');
+        gameOver();
+      }
+    }
+
+    if (g.fading) {
+      g.fadeAlpha -= dt * 3;
+      if (g.fadeAlpha <= 0) {
+        gates.splice(i, 1);
+        continue;
+      }
+    }
+
+    if (g.y > H + 200) {
+      gates.splice(i, 1);
+    }
+  }
+
+  updateParticles(dt);
+  if (shakeTime > 0) shakeTime -= dt;
+}
+
+function updateBallPosition(dt) {
+  if (inputLeft && !inputRight) {
+    ball.targetX = W/2 - MOVE_OFFSET;
+  } else if (inputRight && !inputLeft) {
+    ball.targetX = W/2 + MOVE_OFFSET;
+  } else {
+    ball.targetX = W/2;
+  }
+
+  const lerpFactor = 1 - Math.pow(0.0001, dt);
+  ball.x += (ball.targetX - ball.x) * lerpFactor;
+  ball.x = Math.max(ball.r + 5, Math.min(W - ball.r - 5, ball.x));
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 400 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 100 + Math.random() * 250;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 100,
+      life: 0.6 + Math.random() * 0.4,
+      color,
+      size: 2 + Math.random() * 4
+    });
+  }
+}
+
+const floatTexts = [];
+function spawnText(text, x, y, color, big) {
+  floatTexts.push({ text, x, y, color, life: 1.2, vy: -60, big: !!big });
+}
+
+function fitFont(text, maxWidth, baseSize, weight) {
+  weight = weight || 'bold';
+  let size = baseSize;
+  ctx.font = weight + ' ' + size + 'px Segoe UI';
+  while (ctx.measureText(text).width > maxWidth && size > 10) {
+    size -= 1;
+    ctx.font = weight + ' ' + size + 'px Segoe UI';
+  }
+  return size;
+}
+
+function draw() {
+  ctx.save();
+
+  if (shakeTime > 0) {
+    const shake = shakeTime * 20;
+    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+  }
+
+  ctx.fillStyle = '#0a0e27';
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  const gridAlpha = Math.min(0.4, 0.08 + (speedLevel - 1) * 0.02);
+  ctx.strokeStyle = 'rgba(79, 209, 255, ' + gridAlpha + ')';
+  ctx.lineWidth = 1;
+  const gridOffset = (distance * 0.5) % 60;
+  for (let y = -60 + gridOffset; y < H + 60; y += 60) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  for (let x = 0; x < W; x += 60) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+
+  drawCenterGuide();
+
+  for (const g of gates) drawGate(g);
+
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  drawBall();
+
+  for (let i = floatTexts.length - 1; i >= 0; i--) {
+    const t = floatTexts[i];
+    t.y += t.vy * 0.016;
+    t.life -= 0.016;
+    if (t.life <= 0) { floatTexts.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.min(1, t.life * 2);
+    ctx.fillStyle = t.color;
+    const fontSize = t.big ? 30 : 22;
+    ctx.font = 'bold ' + fontSize + 'px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = t.color;
+    ctx.shadowBlur = t.big ? 25 : 15;
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  if (state === 'countdown') {
+    drawCountdown();
+  }
+
+  ctx.restore();
+}
+
+function drawCenterGuide() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(79, 209, 255, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([8, 12]);
+  ctx.beginPath();
+  ctx.moveTo(W/2, 0);
+  ctx.lineTo(W/2, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawCountdown() {
+  let displayNum = Math.ceil(countdownTime);
+  if (displayNum > 3) displayNum = 3;
+  if (displayNum < 1) displayNum = 1;
+
+  const frac = countdownTime - Math.floor(countdownTime);
+  const t = 1 - frac;
+  const scale = 1.5 - 0.5 * t;
+  const finalAlpha = Math.max(0, 1 - t * 1.2);
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - t * 0.9);
+  ctx.fillStyle = 'rgba(10, 14, 39, 0.6)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = finalAlpha;
+  ctx.translate(W/2, H/2);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#4fd1ff';
+  ctx.font = 'bold 160px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#4fd1ff';
+  ctx.shadowBlur = 40;
+  ctx.fillText(displayNum, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = '#ffd54f';
+  ctx.font = 'bold 20px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('READY...', W/2, H/2 + 130);
+  ctx.restore();
+}
+
+function drawGate(g) {
+  const gateTop = g.y - 35;
+  const gateBottom = g.y + 45;
+
+  ctx.globalAlpha = g.fadeAlpha;
+
+  const questionY = gateBottom + 42;
+  const questionMaxWidth = W - 60;
+  const qFontSize = fitFont(g.question, questionMaxWidth, 32, 'bold');
+  const qWidth = ctx.measureText(g.question).width;
+  const qHeight = qFontSize + 18;
+
+  ctx.fillStyle = 'rgba(79, 209, 255, 0.14)';
+  roundRect(ctx, (W - qWidth) / 2 - 20, questionY - qHeight / 2, qWidth + 40, qHeight, 12);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(79, 209, 255, 0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e0f0ff';
+  ctx.font = 'bold ' + qFontSize + 'px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(79, 209, 255, 0.7)';
+  ctx.shadowBlur = 10;
+  ctx.fillText(g.question, W/2, questionY);
+  ctx.shadowBlur = 0;
+
+  drawGateHalf(g, 0, g.splitX, 'left', gateTop, gateBottom);
+  drawGateHalf(g, g.splitX, W, 'right', gateTop, gateBottom);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(g.splitX, gateTop);
+  ctx.lineTo(g.splitX, gateBottom);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, gateTop);
+  ctx.lineTo(W, gateTop);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, gateBottom);
+  ctx.lineTo(W, gateBottom);
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+
+  const slotWidth = W/2 - 20;
+  const leftFont = fitFont(g.values[0], slotWidth, 26, 'bold');
+  ctx.font = 'bold ' + leftFont + 'px Segoe UI';
+  ctx.fillText(g.values[0], W * 0.25, g.y + 5);
+
+  const rightFont = fitFont(g.values[1], slotWidth, 26, 'bold');
+  ctx.font = 'bold ' + rightFont + 'px Segoe UI';
+  ctx.fillText(g.values[1], W * 0.75, g.y + 5);
+  ctx.shadowBlur = 0;
+
+  ctx.globalAlpha = 1;
+}
+
+function drawGateHalf(g, x, width, side, gateTop, gateBottom) {
+  const gateHeight = gateBottom - gateTop;
+  const isSelected = g.judged && g.selectedSide === side;
+
+  const grad = ctx.createLinearGradient(0, gateTop, 0, gateBottom);
+  if (isSelected) {
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(1, '#c8e8ff');
+  } else {
+    grad.addColorStop(0, '#2a6a9a');
+    grad.addColorStop(1, '#1a3a5a');
+  }
+
+  if (isSelected) {
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+    ctx.shadowBlur = 30;
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, gateTop, width, gateHeight);
+  ctx.shadowBlur = 0;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawBall() {
+  ctx.globalAlpha = 0.3;
+  for (let i = 1; i <= 5; i++) {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y + i * 12, ball.r - i * 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#4fd1ff';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.shadowColor = '#4fd1ff';
+  ctx.shadowBlur = 30;
+  const grad = ctx.createRadialGradient(ball.x - 6, ball.y - 6, 3, ball.x, ball.y, ball.r);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.4, '#4fd1ff');
+  grad.addColorStop(1, '#2a7fd4');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function loop(now) {
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!rankingModal.classList.contains('hidden')) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeRanking();
+    }
+    return;
+  }
+
+  if (document.activeElement === nameInput) {
+    return;
+  }
+
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+    inputLeft = true;
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+    inputRight = true;
+    e.preventDefault();
+  }
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    if (state === 'start' || state === 'over') {
+      e.preventDefault();
+      startGame();
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+    inputLeft = false;
+  }
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+    inputRight = false;
+  }
+});
+
+function handlePointerDown(e) {
+  if (state !== 'playing' && state !== 'countdown') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  if (x < W / 2) inputLeft = true;
+  else inputRight = true;
+}
+
+function handlePointerUp(e) {
+  inputLeft = false;
+  inputRight = false;
+}
+
+canvas.addEventListener('pointerdown', handlePointerDown);
+window.addEventListener('pointerup', handlePointerUp);
+window.addEventListener('pointercancel', handlePointerUp);
+
+function bindButton(el, setter) {
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (state !== 'playing' && state !== 'countdown') return;
+    el.classList.add('active');
+    setter(true);
+  });
+  const release = (e) => {
+    el.classList.remove('active');
+    setter(false);
+  };
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointerleave', release);
+  el.addEventListener('pointercancel', release);
+}
+
+bindButton(btnLeft, (v) => { inputLeft = v; });
+bindButton(btnRight, (v) => { inputRight = v; });
+
+startScreen.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (state === 'start') startGame();
+});
+
+document.getElementById('retryBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  startGame();
+});
+
+loadBest();
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
